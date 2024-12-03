@@ -41,7 +41,6 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
             }
             else
             {
-                Logging.Warn("Creating cooldown text for " + itemObject.gameObject);
                 GameObject cooldownObj = GameObject.Instantiate(GetGameObjectChild(itemObject,"_quickItemSlot_quantityCounter"),itemObject.transform);
                 cooldownObj.transform.localPosition = new Vector3(10f,0f,0f);
                 cooldownObj.GetComponent<Text>().color = Color.white;
@@ -62,7 +61,17 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
                 int maxHealth = ____isCreep._statStruct._maxHealth;
                 int currentHealth = ____isCreep._statusEntity._currentHealth;
                 
-                string newText = ____isCreep._scriptCreep._creepName + " (" + currentHealth + "/" + maxHealth + ")";
+                bool canBeExecuted = currentHealth < maxHealth*0.30f;
+                
+                string newText = 
+                    (canBeExecuted ? "<color=orange>" : "")
+                    + ____isCreep._scriptCreep._creepName
+                    + (canBeExecuted ? "</color>" : "")
+                    + " (" + 
+                    (canBeExecuted ? "<color=orange>" : "")
+                    + currentHealth
+                    + (canBeExecuted ? "</color>" : "")
+                    + "/" + maxHealth + ")";
                 ____isCreep._creepDisplayName = newText;
             }
         }
@@ -119,7 +128,6 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
                             }
                             else
                             {
-                                Logging.Warn("Creating cooldown text for action slot " + x);
                                 GameObject cooldownObject = GameObject.Instantiate(GetGameObjectChild(actionObject,"_actionSlot_hotKey"),actionObject.transform);
                                 cooldownObject.name = "CooldownText";
                                 cooldownObject.transform.localPosition = new Vector3(40f,0f,0f);
