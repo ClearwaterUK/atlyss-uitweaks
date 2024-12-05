@@ -3,8 +3,6 @@ using BepInEx;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using Object = UnityEngine.Object;
-using PluginInfo = BepInEx.PluginInfo;
 
 namespace ATLYSS_UiTweaks
 {

@@ -10,6 +10,30 @@ using static ATLYSS_UiTweaks.CommonFunctions;
 
 namespace ATLYSS_UiTweaks.Harmony_Patches
 {
+    [HarmonyPatch(typeof(Player),"Start")]
+    public static class HandleNewPlayerConnectionPatch
+    {
+        [HarmonyPostfix]
+        public static async void showNewPlayerConnection(Player __instance)
+        {
+            await Task.Delay(5000); //Wait 5 seconds so the game has time to send all the player data to our client
+            if(!__instance.isLocalPlayer)
+            {
+                string steamID = __instance._steamID;
+                if(steamID.Length > 0 && UsernamePersistence.PersistentUsernames.ContainsKey(steamID))
+                {
+                    if(UsernamePersistence.PersistentUsernames.TryGetValue(steamID, out string previousName))
+                    {
+                        ChatBehaviour._current.New_ChatMessage(__instance._nickname + " connected (Previous character was " + previousName + ")"); 
+                    }
+                }
+                else
+                {
+                    UsernamePersistence.PersistentUsernames.Add(steamID,__instance._nickname);
+                }
+            }
+        }
+    }
     
     [HarmonyPatch(typeof(QuickItemSlot),"Iterate_ItemHandleInfo")]
     public static class DisplayConsumableCoolDownInSecondsPatch
@@ -104,7 +128,7 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
         [HarmonyPostfix]
         public static void patchShowSecondsCooldown(ref ActionBarManager __instance, ref ActionSlot[] ____actionSlots, PlayerCasting ____pCast)
         {
-            if(____actionSlots != null)
+            if(____actionSlots != null && ____pCast != null && __instance != null)
             {
                 for(int x = 0; x < 6; x++)
                 {
@@ -116,7 +140,7 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
                             GameObject CooldownText = GetGameObjectChild(actionObject,"CooldownText");
                             if(CooldownText != null)
                             {
-                                if(____pCast._skillCoolDowns[x] > 0f)
+                                if(____pCast._skillCoolDowns[x] != null && ____pCast._skillCoolDowns[x] > 0f)
                                 {
                                     CooldownText.SetActive(true);
                                     CooldownText.GetComponent<Text>().text = ____pCast._skillCoolDowns[x].ToString("F1");
