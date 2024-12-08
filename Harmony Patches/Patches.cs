@@ -16,20 +16,26 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
         [HarmonyPostfix]
         public static async void showNewPlayerConnection(Player __instance)
         {
-            await Task.Delay(5000); //Wait 5 seconds so the game has time to send all the player data to our client
-            if(!__instance.isLocalPlayer)
+            if(ModSettings.toggleCharMemory)
             {
-                string steamID = __instance._steamID;
-                if(steamID.Length > 0 && UsernamePersistence.PersistentUsernames.ContainsKey(steamID))
+                await Task.Delay(5000); //Wait 5 seconds so the game has time to send all the player data to our client
+                if(!__instance.isLocalPlayer)
                 {
-                    if(UsernamePersistence.PersistentUsernames.TryGetValue(steamID, out string previousName))
+                    string steamID = __instance._steamID;
+                    if(steamID.Length > 0 && UsernamePersistence.PersistentUsernames.ContainsKey(steamID))
                     {
-                        ChatBehaviour._current.New_ChatMessage(__instance._nickname + " connected (Previous character was " + previousName + ")"); 
+                        if(UsernamePersistence.PersistentUsernames.TryGetValue(steamID, out string previousName)
+                           && __instance._nickname != previousName)
+                        {
+                            {
+                                ChatBehaviour._current.New_ChatMessage(__instance._nickname + " connected (Previous character was " + previousName + ")"); 
+                            }
+                        }
                     }
-                }
-                else
-                {
-                    UsernamePersistence.PersistentUsernames.Add(steamID,__instance._nickname);
+                    else
+                    {
+                        UsernamePersistence.PersistentUsernames.Add(steamID,__instance._nickname);
+                    }
                 }
             }
         }
@@ -41,36 +47,36 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
         [HarmonyPostfix]
         public static void patchShowSecondsCooldown(ref QuickItemSlot __instance, ref PlayerInventory ____pInventory)
         {
-            GameObject itemObject = __instance.gameObject;
+                GameObject itemObject = __instance.gameObject;
             
-            GameObject cooldownText = GetGameObjectChild(itemObject,"CooldownText");
-            if(cooldownText != null)
-            {
-                for (int i = 0; i < ____pInventory._consumableBuffers.Count; i++)
+                GameObject cooldownText = GetGameObjectChild(itemObject,"CooldownText");
+                if(cooldownText != null)
                 {
-                    if(____pInventory._consumableBuffers[i]._scriptableConsumable._itemName == __instance._setItemName)
+                    for (int i = 0; i < ____pInventory._consumableBuffers.Count; i++)
                     {
-                        float currentCooldown = ____pInventory._consumableBuffers[i]._bufferTimer;
-                        if(currentCooldown > 0f)
+                        if(____pInventory._consumableBuffers[i]._scriptableConsumable._itemName == __instance._setItemName)
                         {
-                            cooldownText.GetComponent<Text>().text = currentCooldown.ToString("F1");
-                            cooldownText.SetActive(true);
-                        }
-                        else
-                        {
-                            cooldownText.SetActive(false);
+                            float currentCooldown = ____pInventory._consumableBuffers[i]._bufferTimer;
+                            if(currentCooldown > 0f && ModSettings.toggleConsumableCooldown)
+                            {
+                                cooldownText.GetComponent<Text>().text = currentCooldown.ToString("F1");
+                                cooldownText.SetActive(true);
+                            }
+                            else
+                            {
+                                cooldownText.SetActive(false);
+                            }
                         }
                     }
                 }
-            }
-            else
-            {
-                GameObject cooldownObj = GameObject.Instantiate(GetGameObjectChild(itemObject,"_quickItemSlot_quantityCounter"),itemObject.transform);
-                cooldownObj.transform.localPosition = new Vector3(10f,0f,0f);
-                cooldownObj.GetComponent<Text>().color = Color.white;
-                cooldownObj.name = "CooldownText";
-                cooldownObj.SetActive(false);
-            }
+                else
+                {
+                    GameObject cooldownObj = GameObject.Instantiate(GetGameObjectChild(itemObject,"_quickItemSlot_quantityCounter"),itemObject.transform);
+                    cooldownObj.transform.localPosition = new Vector3(10f,0f,0f);
+                    cooldownObj.GetComponent<Text>().color = Color.white;
+                    cooldownObj.name = "CooldownText";
+                    cooldownObj.SetActive(false);
+                }
         }
     }
     
@@ -80,24 +86,40 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
         [HarmonyPostfix]
         public static void displayEnemyHPInBar(ref StatusEntityGUI __instance, ref Creep ____isCreep)
         {
-            if(____isCreep != null)
+            if(ModSettings.toggleEnemyHP)
             {
-                int maxHealth = ____isCreep._statStruct._maxHealth;
-                int currentHealth = ____isCreep._statusEntity._currentHealth;
+                if(____isCreep != null)
+                {
+                    int maxHealth = ____isCreep._statStruct._maxHealth;
+                    int currentHealth = ____isCreep._statusEntity._currentHealth;
                 
-                bool canBeExecuted = currentHealth < maxHealth*0.30f;
-                
-                string newText = 
-                    (canBeExecuted ? "<color=orange>" : "")
-                    + ____isCreep._scriptCreep._creepName
-                    + (canBeExecuted ? "</color>" : "")
-                    + " (" + 
-                    (canBeExecuted ? "<color=orange>" : "")
-                    + currentHealth
-                    + (canBeExecuted ? "</color>" : "")
-                    + "/" + maxHealth + ")";
-                ____isCreep._creepDisplayName = newText;
+                    bool canBeExecuted = currentHealth < maxHealth*0.30f;
+                    string newText = "";
+                    if(ModSettings.toggleEnemyHPCritical)
+                    {
+                        newText = 
+                            (canBeExecuted ? "<color=orange>" : "")
+                            + ____isCreep._scriptCreep._creepName
+                            + (canBeExecuted ? "</color>" : "")
+                            + " (" + 
+                            (canBeExecuted ? "<color=orange>" : "")
+                            + currentHealth
+                            + (canBeExecuted ? "</color>" : "")
+                            + "/" + maxHealth + ")";
+                    }
+                    else
+                    {
+                        newText = 
+                            ____isCreep._scriptCreep._creepName
+                            + " (" + 
+                            + currentHealth
+                            + "/" + maxHealth + ")";
+                    }
+
+                    ____isCreep._creepDisplayName = newText;
+                } 
             }
+            
         }
     }
     
@@ -107,17 +129,20 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
         [HarmonyPostfix]
         public static void patchExpBar(ref InGameUI __instance, PlayerStats ____pStats, ref Text ____text_experienceCounter)
         {
-            StatsMenuCell smc = Object.FindObjectOfType<StatsMenuCell>();
-            if(smc != null && ____text_experienceCounter.text != "MAX")
+            if(ModSettings.toggleXPToLevelDisplay)
             {
-                int currentExp = ____pStats._currentExp;
-                float requiredForNextLevel = smc._mainPlayer._pStats._statStruct._experience;
+                StatsMenuCell smc = Object.FindObjectOfType<StatsMenuCell>();
+                if(smc != null && ____text_experienceCounter.text != "MAX")
+                {
+                    int currentExp = ____pStats._currentExp;
+                    float requiredForNextLevel = smc._mainPlayer._pStats._statStruct._experience;
                 
-                float percentage = currentExp / requiredForNextLevel*100f;
-                string str = string.Format("{0} ({1}%) | {2} to next level", currentExp, percentage.ToString("F2"),((requiredForNextLevel-currentExp).ToString()));
+                    float percentage = currentExp / requiredForNextLevel*100f;
+                    string str = string.Format("{0} ({1}%) | {2} to next level", currentExp, percentage.ToString("F2"),((requiredForNextLevel-currentExp).ToString()));
                 
-                ____text_experienceCounter.text = str;
-                ____text_experienceCounter.horizontalOverflow = HorizontalWrapMode.Overflow;
+                    ____text_experienceCounter.text = str;
+                    ____text_experienceCounter.horizontalOverflow = HorizontalWrapMode.Overflow;
+                }
             }
         }
     }
@@ -128,37 +153,37 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
         [HarmonyPostfix]
         public static void patchShowSecondsCooldown(ref ActionBarManager __instance, ref ActionSlot[] ____actionSlots, PlayerCasting ____pCast)
         {
-            if(____actionSlots != null && ____pCast != null && __instance != null)
-            {
-                for(int x = 0; x < 6; x++)
+                if(____actionSlots != null && ____pCast != null && __instance != null)
                 {
-                    if(____actionSlots[x] != null)
+                    for(int x = 0; x < 6; x++)
                     {
-                        GameObject actionObject = ____actionSlots[x].gameObject;
-                        if(actionObject != null)
+                        if(____actionSlots[x] != null)
                         {
-                            GameObject CooldownText = GetGameObjectChild(actionObject,"CooldownText");
-                            if(CooldownText != null)
+                            GameObject actionObject = ____actionSlots[x].gameObject;
+                            if(actionObject != null)
                             {
-                                if(____pCast._skillCoolDowns[x] != null && ____pCast._skillCoolDowns[x] > 0f)
+                                GameObject CooldownText = GetGameObjectChild(actionObject,"CooldownText");
+                                if(CooldownText != null)
                                 {
-                                    CooldownText.SetActive(true);
-                                    CooldownText.GetComponent<Text>().text = ____pCast._skillCoolDowns[x].ToString("F1");
+                                    if(____pCast._skillCoolDowns[x] != null && ____pCast._skillCoolDowns[x] > 0f && ModSettings.toggleActionCooldown)
+                                    {
+                                        CooldownText.SetActive(true);
+                                        CooldownText.GetComponent<Text>().text = ____pCast._skillCoolDowns[x].ToString("F1");
+                                    }
+                                    else
+                                    {
+                                        CooldownText.SetActive(false);
+                                    }
                                 }
                                 else
                                 {
-                                    CooldownText.SetActive(false);
+                                    GameObject cooldownObject = GameObject.Instantiate(GetGameObjectChild(actionObject,"_actionSlot_hotKey"),actionObject.transform);
+                                    cooldownObject.name = "CooldownText";
+                                    cooldownObject.transform.localPosition = new Vector3(40f,0f,0f);
                                 }
-                            }
-                            else
-                            {
-                                GameObject cooldownObject = GameObject.Instantiate(GetGameObjectChild(actionObject,"_actionSlot_hotKey"),actionObject.transform);
-                                cooldownObject.name = "CooldownText";
-                                cooldownObject.transform.localPosition = new Vector3(40f,0f,0f);
                             }
                         }
                     }
-                }
             }
         }
     }
