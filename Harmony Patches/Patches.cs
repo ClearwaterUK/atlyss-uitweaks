@@ -123,7 +123,7 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
         }
     }
     
-    [HarmonyPatch(typeof(InGameUI),"Handle_StatusFillBars")]
+    [HarmonyPatch(typeof(InGameUI),"Update")]
     public static class DisplayXPToNextLevelPatch
     {
         [HarmonyPostfix]
@@ -132,14 +132,14 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
             if(ModSettings.toggleXPToLevelDisplay)
             {
                 StatsMenuCell smc = Object.FindObjectOfType<StatsMenuCell>();
-                if(smc != null && ____text_experienceCounter.text != "MAX")
+                if(____pStats != null && smc != null && ____text_experienceCounter.text != "MAX")
                 {
                     int currentExp = ____pStats._currentExp;
                     float requiredForNextLevel = smc._mainPlayer._pStats._statStruct._experience;
                 
                     float percentage = currentExp / requiredForNextLevel*100f;
                     string str = string.Format("{0} ({1}%) | {2} to next level", currentExp, percentage.ToString("F2"),((requiredForNextLevel-currentExp).ToString()));
-                
+                    
                     ____text_experienceCounter.text = str;
                     ____text_experienceCounter.horizontalOverflow = HorizontalWrapMode.Overflow;
                 }
