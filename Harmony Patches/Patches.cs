@@ -169,9 +169,14 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
                                     {
                                         CooldownText.SetActive(true);
                                         CooldownText.GetComponent<Text>().text = ____pCast._skillCoolDowns[x].ToString("F1");
+                                        if (____pCast._skillCoolDowns[x] < 10f && CooldownText.transform.localPosition.x == 40f)
+                                        {
+                                            CooldownText.transform.localPosition = new Vector3(45f, 0f, 0f);
+                                        }
                                     }
                                     else
                                     {
+                                        CooldownText.transform.localPosition = new Vector3(40f,0f,0f);
                                         CooldownText.SetActive(false);
                                     }
                                 }
