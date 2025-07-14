@@ -1,6 +1,6 @@
-﻿
-using System;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Linq;
+using ATLYSS_UiTweaks;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,53 +10,47 @@ using static ATLYSS_UiTweaks.CommonFunctions;
 
 namespace ATLYSS_UiTweaks.Harmony_Patches
 {
-    [HarmonyPatch(typeof(Player),"Start")]
-    public static class HandleNewPlayerConnectionPatch
+    [HarmonyPatch(typeof(Player),"Player_OnDeath")]
+    public static class resetCooldownOnDeathPatch
     {
         [HarmonyPostfix]
-        public static async void showNewPlayerConnection(Player __instance)
+        //Reset all timers if the player dies.
+        public static void resetSkillCooldownOnDeath(ref Player __instance)
         {
-            if(ModSettings.toggleCharMemory)
+            if (__instance.isLocalPlayer)
             {
-                await Task.Delay(5000); //Wait 5 seconds so the game has time to send all the player data to our client
-                if(!__instance.isLocalPlayer)
+                for (int j = 0; j < ActionBarManager._current._actionSlots.Length; j++)
                 {
-                    string steamID = __instance._steamID;
-                    if(steamID.Length > 0 && UsernamePersistence.PersistentUsernames.ContainsKey(steamID))
+                    GameObject actionObject = ActionBarManager._current._actionSlots[j].gameObject;
+                    GameObject CooldownText = GetGameObjectChild(actionObject, "CooldownText");
+                    if (CooldownText != null)
                     {
-                        if(UsernamePersistence.PersistentUsernames.TryGetValue(steamID, out string previousName)
-                           && __instance._nickname != previousName)
-                        {
-                            {
-                                ChatBehaviour._current.New_ChatMessage(__instance._nickname + " connected (Previous character was " + previousName + ")"); 
-                            }
-                        }
-                    }
-                    else
-                    {
-                        UsernamePersistence.PersistentUsernames.Add(steamID,__instance._nickname);
+                        CooldownText.GetComponent<Text>().text = "0.0";
+                        CooldownText.SetActive(false);
                     }
                 }
             }
         }
     }
-    
-    [HarmonyPatch(typeof(QuickItemSlot),"Iterate_ItemHandleInfo")]
+
+    [HarmonyPatch(typeof(QuickItemSlot),"Update")]
     public static class DisplayConsumableCoolDownInSecondsPatch
     {
         [HarmonyPostfix]
-        public static void patchShowSecondsCooldown(ref QuickItemSlot __instance, ref PlayerInventory ____pInventory)
-        {
+        public static void patchShowSecondsCooldown(ref QuickItemSlot __instance)
+        { 
+            if (Player._mainPlayer != null)
+            {
                 GameObject itemObject = __instance.gameObject;
-            
+                PlayerInventory pInv = Player._mainPlayer._pInventory;
                 GameObject cooldownText = GetGameObjectChild(itemObject,"CooldownText");
-                if(cooldownText != null)
+                if(itemObject != null && pInv != null && cooldownText != null)
                 {
-                    for (int i = 0; i < ____pInventory._consumableBuffers.Count; i++)
+                    for (int i = 0; i < pInv._consumableBuffers.Count; i++)
                     {
-                        if(____pInventory._consumableBuffers[i]._scriptableConsumable._itemName == __instance._setItemName)
+                        if(pInv._consumableBuffers[i]._scriptableConsumable._itemName == __instance._setItemName)
                         {
-                            float currentCooldown = ____pInventory._consumableBuffers[i]._bufferTimer;
+                            float currentCooldown = pInv._consumableBuffers[i]._bufferTimer;
                             if(currentCooldown > 0f && ModSettings.toggleConsumableCooldown)
                             {
                                 cooldownText.GetComponent<Text>().text = currentCooldown.ToString("F1");
@@ -66,6 +60,10 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
                             {
                                 cooldownText.SetActive(false);
                             }
+                        }
+                        else
+                        {
+                            cooldownText.SetActive(false);
                         }
                     }
                 }
@@ -77,6 +75,7 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
                     cooldownObj.name = "CooldownText";
                     cooldownObj.SetActive(false);
                 }
+            }
         }
     }
     
@@ -92,14 +91,18 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
                 {
                     int maxHealth = ____isCreep._statStruct._maxHealth;
                     int currentHealth = ____isCreep._statusEntity._currentHealth;
-                
                     bool canBeExecuted = currentHealth < maxHealth*0.30f;
+
+                    string prefix = (____isCreep._scriptStatModifier != null
+                        ? ____isCreep._scriptStatModifier._modifierTag + " "
+                        : "");
+
                     string newText = "";
                     if(ModSettings.toggleEnemyHPCritical)
                     {
                         newText = 
                             (canBeExecuted ? "<color=orange>" : "")
-                            + ____isCreep._scriptCreep._creepName
+                            + prefix + ____isCreep._scriptCreep._creepName
                             + (canBeExecuted ? "</color>" : "")
                             + " (" + 
                             (canBeExecuted ? "<color=orange>" : "")
@@ -110,7 +113,7 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
                     else
                     {
                         newText = 
-                            ____isCreep._scriptCreep._creepName
+                            prefix + ____isCreep._scriptCreep._creepName
                             + " (" + 
                             + currentHealth
                             + "/" + maxHealth + ")";
@@ -119,7 +122,6 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
                     ____isCreep._creepDisplayName = newText;
                 } 
             }
-            
         }
     }
     
@@ -129,67 +131,81 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
         [HarmonyPostfix]
         public static void patchExpBar(ref InGameUI __instance, PlayerStats ____pStats, ref Text ____text_experienceCounter)
         {
-            if(ModSettings.toggleXPToLevelDisplay)
+            if(ModSettings.toggleXPToLevelDisplay && __instance != null && ____pStats != null && ____text_experienceCounter != null)
             {
                 StatsMenuCell smc = Object.FindObjectOfType<StatsMenuCell>();
-                if(____pStats != null && smc != null && ____text_experienceCounter.text != "MAX")
+                if(smc != null && ____text_experienceCounter.text != "MAX")
                 {
                     int currentExp = ____pStats._currentExp;
                     float requiredForNextLevel = smc._mainPlayer._pStats._statStruct._experience;
-                
+
                     float percentage = currentExp / requiredForNextLevel*100f;
                     string str = string.Format("{0} ({1}%) | {2} to next level", currentExp, percentage.ToString("F2"),((requiredForNextLevel-currentExp).ToString()));
-                    
+
                     ____text_experienceCounter.text = str;
                     ____text_experienceCounter.horizontalOverflow = HorizontalWrapMode.Overflow;
                 }
             }
         }
     }
-    
-    [HarmonyPatch(typeof(ActionBarManager),"LateUpdate")]
+
+    [HarmonyPatch(typeof(ActionBarManager), "Update")]
     public static class DisplaySkillCooldownInSecondsPatch
     {
         [HarmonyPostfix]
-        public static void patchShowSecondsCooldown(ref ActionBarManager __instance, ref ActionSlot[] ____actionSlots, PlayerCasting ____pCast)
+        public static void patchShowSecondsCooldown(ref ActionBarManager __instance, ref ActionSlot[] ____actionSlots,
+            PlayerCasting ____pCast)
         {
-                if(____actionSlots != null && ____pCast != null && __instance != null)
+            if (____actionSlots != null && ____pCast != null && __instance != null && ModSettings.toggleActionCooldown)
+            {
+                for (int i = 0; i < ____actionSlots.Length; i++)
                 {
-                    for(int x = 0; x < 6; x++)
+                    for (int j = 0; j < ____pCast._skillCoolDownSlots.Count; j++)
                     {
-                        if(____actionSlots[x] != null)
+                        GameObject actionObject = ____actionSlots[i].gameObject;
+                        GameObject CooldownText = GetGameObjectChild(actionObject, "CooldownText");
+
+                        if (CooldownText != null)
                         {
-                            GameObject actionObject = ____actionSlots[x].gameObject;
-                            if(actionObject != null)
+                            List<ScriptableSkill> skillsOnCooldown =
+                                ____pCast._skillCoolDownSlots.Select(slot => slot._scriptSkill).ToList();
+
+                            if (skillsOnCooldown.Contains(____actionSlots[i]._scriptSkill))
                             {
-                                GameObject CooldownText = GetGameObjectChild(actionObject,"CooldownText");
-                                if(CooldownText != null)
+                                if (____actionSlots[i]._scriptSkill == ____pCast._skillCoolDownSlots[j]._scriptSkill)
                                 {
-                                    if(____pCast._skillCoolDowns[x] != null && ____pCast._skillCoolDowns[x] > 0f && ModSettings.toggleActionCooldown)
+                                    Text cooldownText = CooldownText.GetComponent<Text>();
+                                    cooldownText.text = ____pCast._skillCoolDownSlots[j]._currentCooldown.ToString("F1");
+                                    
+                                    CooldownText.transform.position = actionObject.transform.position;
+                                    CooldownText.transform.localPosition = new Vector3(40f, 0f, 0f);
+
+                                    CooldownText.SetActive(____pCast._skillCoolDownSlots[j]._currentCooldown > 0.1f);
+
+                                    if (____pCast._skillCoolDownSlots[j]._currentCooldown < 10f && CooldownText.transform.localPosition.x == 40f)
                                     {
-                                        CooldownText.SetActive(true);
-                                        CooldownText.GetComponent<Text>().text = ____pCast._skillCoolDowns[x].ToString("F1");
-                                        if (____pCast._skillCoolDowns[x] < 10f && CooldownText.transform.localPosition.x == 40f)
-                                        {
-                                            CooldownText.transform.localPosition = new Vector3(45f, 0f, 0f);
-                                        }
+                                        CooldownText.transform.localPosition = new Vector3(45f, 0f, 0f);
                                     }
-                                    else
-                                    {
-                                        CooldownText.transform.localPosition = new Vector3(40f,0f,0f);
-                                        CooldownText.SetActive(false);
-                                    }
-                                }
-                                else
-                                {
-                                    GameObject cooldownObject = GameObject.Instantiate(GetGameObjectChild(actionObject,"_actionSlot_hotKey"),actionObject.transform);
-                                    cooldownObject.name = "CooldownText";
-                                    cooldownObject.transform.localPosition = new Vector3(40f,0f,0f);
-                                }
+                                }  
+                            }
+                            else
+                            {
+                                CooldownText.SetActive(false);
                             }
                         }
+                        else
+                        {
+                            GameObject cooldownObject = GameObject.Instantiate(
+                                GetGameObjectChild(actionObject, "_actionSlot_hotKey"), actionObject.transform);
+                            cooldownObject.name = "CooldownText";
+                            cooldownObject.transform.position = actionObject.transform.position;
+                            cooldownObject.transform.localPosition = new Vector3(40f, 0f, 0f);
+                            cooldownObject.SetActive(false);
+                        }
                     }
+                }
             }
         }
     }
+    
 }
