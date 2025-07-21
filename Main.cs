@@ -1,12 +1,8 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
 using Nessie.ATLYSS.EasySettings;
-using Nessie.ATLYSS.EasySettings.UIElements;
-using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace ATLYSS_UiTweaks
 {
@@ -28,7 +24,6 @@ namespace ATLYSS_UiTweaks
             
             Settings.OnInitialized.AddListener(InitModSettings);
             Settings.OnApplySettings.AddListener(() => ApplySettings());
-            
         }
         
         public void ApplySettings()
@@ -39,6 +34,7 @@ namespace ATLYSS_UiTweaks
             ModSettings.toggleEnemyHP = ModSettings.toggleEnemyHPToggle.Toggle.isOn;
             ModSettings.toggleEnemyHPCritical = ModSettings.toggleEnemyHPCriticalToggle.Toggle.isOn;
             ModSettings.toggleActionCooldown = ModSettings.toggleActionCooldownToggle.Toggle.isOn;
+            ModSettings.toggleAutoLoot = ModSettings.toggleAutoLootToggle.Toggle.isOn;
 
             SaveToConfigFile();
         }
@@ -49,6 +45,7 @@ namespace ATLYSS_UiTweaks
             Config.Bind("CTT","toggleEnemyHP",true).Value = ModSettings.toggleEnemyHPToggle.Toggle.isOn;
             Config.Bind("CTT","toggleEnemyHPCritical",true).Value = ModSettings.toggleEnemyHPCriticalToggle.Toggle.isOn;
             Config.Bind("CTT","toggleActionCooldown",true).Value = ModSettings.toggleActionCooldownToggle.Toggle.isOn;
+            Config.Bind("CTT","toggleAutoLoot",true).Value = ModSettings.toggleAutoLootToggle.Toggle.isOn;
 
             Config.Save();
         }
@@ -73,9 +70,8 @@ namespace ATLYSS_UiTweaks
             ModSettings.toggleXPToLevelDisplayToggle = tab.AddToggle("Show XP to level up on toolbar",ModSettings.toggleXPToLevelDisplay);
             ModSettings.toggleEnemyHPToggle = tab.AddToggle("Enemy HP numbers",ModSettings.toggleEnemyHP);
             ModSettings.toggleEnemyHPCriticalToggle = tab.AddToggle("Enemy critical HP colors (requires Enemy HP numbers)",ModSettings.toggleEnemyHPCritical);
-            ModSettings.toggleActionCooldownToggle = tab.AddToggle("Action slot cooldown display",ModSettings.toggleActionCooldown);
+            ModSettings.toggleActionCooldownToggle = tab.AddToggle("Action & consumable cooldown display",ModSettings.toggleActionCooldown);
+            ModSettings.toggleAutoLootToggle = tab.AddToggle("Auto-loot items (doesn't loot manually dropped items)",ModSettings.toggleAutoLoot);
         }
-        
     }
-
 }

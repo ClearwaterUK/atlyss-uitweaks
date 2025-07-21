@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
@@ -10,6 +11,50 @@ namespace ATLYSS_UiTweaks;
 
 public static class CommonFunctions
 {
+
+    public static bool checkRoomInInventorySilent(ScriptableItem item, PlayerInventory inventory, int quantity)
+    {
+        switch (item._itemType)
+        {
+            case ItemType.GEAR:
+            {
+                return (inventory._usedEquipmentSlots <= inventory._maxInventoryStruct._maxEquipmentSlots);
+            }
+            case ItemType.CONSUMABLE:
+            {
+                if (inventory._usedConsumableItemSlots <= inventory._maxInventoryStruct._maxConsumableItemSlots)
+                {
+                    for (int i = 0; i < inventory._heldItems.Count; i++)
+                    {
+                        if (inventory._heldItems[i]._itemName == item._itemName && inventory._heldItems[i]._quantity + quantity <= inventory._heldItems[i]._maxQuantity)
+                        {
+                            return true;
+                        }
+                    }
+                    return true;
+                }
+
+                return false;
+            }
+            case ItemType.TRADE:
+            {
+                if (inventory._usedTradeItemSlots <= inventory._maxInventoryStruct._maxTradeItemSlots)
+                {
+                    for (int j = 0; j < inventory._heldItems.Count; j++)
+                    {
+                        if (inventory._heldItems[j]._itemName == item._itemName
+                            && inventory._heldItems[j]._quantity + quantity <= inventory._heldItems[j]._maxQuantity)
+                        {
+                            return true;
+                        }
+                    }
+                    return true;
+                }
+                return false;   
+            }
+        }
+        return false;
+    }
     
     public static string getSceneName()
     {

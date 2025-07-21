@@ -10,6 +10,33 @@ using static ATLYSS_UiTweaks.CommonFunctions;
 
 namespace ATLYSS_UiTweaks.Harmony_Patches
 {
+    [HarmonyPatch(typeof(ItemObject), "Update")]
+    public static class AutoLootPatch
+    {
+        //Auto-loot any items that's locally tied to the player (instanced loot).
+        [HarmonyPostfix]
+        public static void autoLoot(ref ItemObject __instance, Net_ItemObject ____netItemObj)
+        {
+            if (__instance._canPickUp && __instance._local_taggedID != null && __instance._currencyDropAmount == 0 &&
+                !____netItemObj && ModSettings.toggleAutoLoot)
+            {
+                //Make sure the item is close enough to the player
+                float distance = Vector3.Distance(__instance.gameObject.transform.position,
+                    __instance._local_taggedID.gameObject.transform.position);
+                
+                if (distance < 20f)
+                {
+                    //Check if player has room in inv
+                    if(checkRoomInInventorySilent(__instance._foundItem, Player._mainPlayer._pInventory,__instance._local_itemData._quantity))
+                    {
+                        __instance.Init_PickupItem(Player._mainPlayer.netIdentity);
+                    }
+                }
+            }
+        }
+    }
+    
+    
     [HarmonyPatch(typeof(Player),"Player_OnDeath")]
     public static class resetCooldownOnDeathPatch
     {
@@ -91,7 +118,7 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
                 {
                     int maxHealth = ____isCreep._statStruct._maxHealth;
                     int currentHealth = ____isCreep._statusEntity._currentHealth;
-                    bool canBeExecuted = currentHealth < maxHealth*0.30f;
+                    bool canBeExecuted = currentHealth < maxHealth*0.25f && !____isCreep._scriptCreep._isElite;
 
                     string prefix = (____isCreep._scriptStatModifier != null
                         ? ____isCreep._scriptStatModifier._modifierTag + " "
@@ -140,7 +167,7 @@ namespace ATLYSS_UiTweaks.Harmony_Patches
                     float requiredForNextLevel = smc._mainPlayer._pStats._statStruct._experience;
 
                     float percentage = currentExp / requiredForNextLevel*100f;
-                    string str = string.Format("{0} ({1}%) | {2} to next level", currentExp, percentage.ToString("F2"),((requiredForNextLevel-currentExp).ToString()));
+                    string str = string.Format("{0} ({1}%) | {2}xp to next level", currentExp, percentage.ToString("F2"),((requiredForNextLevel-currentExp).ToString()));
 
                     ____text_experienceCounter.text = str;
                     ____text_experienceCounter.horizontalOverflow = HorizontalWrapMode.Overflow;
